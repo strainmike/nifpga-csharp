@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34031.279
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NationalInstruments.NiFpga", "..\..\dev\nifpga-csharp\nifpga-csharp\NationalInstruments.NiFpga.csproj", "{61331B46-1475-4D84-BA80-ACA5595DFE84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NiFpgaExample", "..\..\dev\nifpga-csharp\NiFpgaExample\NiFpgaExample.csproj", "{490D8DE5-544C-444B-A016-B655B172C8EE}"
+	ProjectSection(ProjectDependencies) = postProject
+		{61331B46-1475-4D84-BA80-ACA5595DFE84} = {61331B46-1475-4D84-BA80-ACA5595DFE84}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{61331B46-1475-4D84-BA80-ACA5595DFE84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61331B46-1475-4D84-BA80-ACA5595DFE84}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61331B46-1475-4D84-BA80-ACA5595DFE84}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61331B46-1475-4D84-BA80-ACA5595DFE84}.Release|Any CPU.Build.0 = Release|Any CPU
+		{490D8DE5-544C-444B-A016-B655B172C8EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{490D8DE5-544C-444B-A016-B655B172C8EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{490D8DE5-544C-444B-A016-B655B172C8EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{490D8DE5-544C-444B-A016-B655B172C8EE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6B785529-9631-45BF-A361-F6ED4306F97B}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <RootNamespace>NationalInstruments.NiFpga</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Title>NI FPGA Interface C#</Title>
+    <Authors>Michael Strain</Authors>
+    <Company>NI</Company>
+    <Description>API for accessing NI's FPGA devices from C#.</Description>
+    <Copyright>National Instruments</Copyright>
+    <PackageTags>fpga;hardawre;driver</PackageTags>
+  </PropertyGroup>
+
+</Project>
