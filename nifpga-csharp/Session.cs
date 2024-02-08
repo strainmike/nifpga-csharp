@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
 
@@ -114,7 +115,7 @@ namespace NationalInstruments.NiFpga
             }
             catch
             {
-                NativeMethods.NiFpgaDll_Close(_session, 0);
+                NativeMethods.NiFpgaDll_Close(_session, 1);
                 throw;
             }
         }
@@ -135,7 +136,7 @@ namespace NationalInstruments.NiFpga
             if (!_disposed)
             {
                 // Dispose unmanaged resources.
-                NativeMethods.NiFpgaDll_Close(_session, 0);
+                NativeMethods.NiFpgaDll_Close(_session, 1);
                 _disposed = true;
             }
         }
@@ -166,7 +167,7 @@ namespace NationalInstruments.NiFpga
         public void run()
         {
             int result = NativeMethods.NiFpgaDll_Run(_session, 0);
-            if (result != 0)
+            if (result < 0)
             {
                 throw new Exception("Failed to run");
             }
@@ -191,6 +192,9 @@ namespace NationalInstruments.NiFpga
         private FpgaRegister _register;
         private Session _session;
         private uint _resource;
+        private int _bitShift;
+
+        public int Length => _register.Length();
 
         public Register(Session session, FpgaRegister bitfileRegister, uint baseAddressOnDevice)
         {
@@ -203,19 +207,26 @@ namespace NationalInstruments.NiFpga
             {
                 _resource = _resource | 0x80000000;
             }
+            if (_transferLen > 1)
+                _bitShift = _transferLen * 32 - _register.Type.SizeInBits;
+            else
+                _bitShift = 0;
         }
 
         public dynamic Read()
         {
             uint[] buf = new uint[_transferLen];
+            Console.WriteLine($"Shift: {_bitShift}, _transferLen: {_transferLen}, SizeInBits:{_register.Type.SizeInBits}");
             NativeMethods.NiFpgaDll_ReadArrayU32(_session._session, _register.Offset, buf, _transferLen);
-            return _register.Type.UnpackData(buf, 0);
+            Console.WriteLine($"Read Buffer contents: {string.Join(", ", buf.Select(x => "0x" + x.ToString("X")))}");
+            return _register.Type.UnpackData(buf, _bitShift);
         }
 
         public void Write(dynamic userInput)
         {
             uint[] buf = new uint[_transferLen];
-            _register.Type.PackData(userInput, buf, 0);
+            _register.Type.PackData(userInput, buf, _bitShift);
+            Console.WriteLine($"Write Buffer contents: {string.Join(", ", buf.Select(x => "0x" + x.ToString("X")))}");
             NativeMethods.NiFpgaDll_WriteArrayU32(_session._session, _register.Offset, buf, _transferLen);
         }
     }
