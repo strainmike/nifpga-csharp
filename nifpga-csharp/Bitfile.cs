@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Runtime.Serialization;
@@ -202,21 +203,31 @@ namespace NationalInstruments.NiFpga
         public long UnpackSignedData(uint[] data, int bitIndex)
         {
             int uintIndex = bitIndex / 32;
+            int nextUintIndex = uintIndex + 1;
             int bitOffset = bitIndex % 32;
+
+            Console.WriteLine($"UnpackSignedData: bitIndex={bitIndex}, uintIndex={uintIndex}, bitOffset={bitOffset}, SizeInBits={SizeInBits}");
 
             long value = 0;
             for (int i = 0; i < SizeInBits; i += 32)
             {
-                if (uintIndex + i / 32 < data.Length)
+                if (uintIndex < data.Length)
                 {
-                    value |= (long)(data[uintIndex + i / 32] >> bitOffset) << i;
+                    value |= (long)(data[uintIndex] >> bitOffset) << i;
 
-                    if (bitOffset > 0 && uintIndex + i / 32 + 1 < data.Length)
+                    Console.WriteLine($"UnpackSignedData: i={i}, data[{uintIndex}]={data[uintIndex]}, value={value}");
+
+                    if (bitOffset > 0 && nextUintIndex < data.Length)
                     {
-                        value |= (long)(data[uintIndex + i / 32 + 1] << (32 - bitOffset)) << i;
+                        value |= (long)(data[nextUintIndex] << (32 - bitOffset)) << i;
+                        Console.WriteLine($"UnpackSignedData: i={i}, data[{nextUintIndex}]={data[nextUintIndex]}, value={value}");
                     }
                 }
+
+                uintIndex++;
+                nextUintIndex++;
             }
+            Console.WriteLine($"UnpackSignedData: before sign extend value={value}");
 
             // Sign extend if the value is negative
             if ((value & (1L << (SizeInBits - 1))) != 0)
@@ -224,8 +235,11 @@ namespace NationalInstruments.NiFpga
                 value |= ~((1L << SizeInBits) - 1);
             }
 
+            Console.WriteLine($"UnpackSignedData: final value={value}");
+
             return value;
         }
+
         public void PackUnsignedData(ulong value, uint[] data, int bitIndex)
         {
             int uintIndex = (data.Length - 1) - bitIndex / 32;
@@ -285,12 +299,12 @@ namespace NationalInstruments.NiFpga
 
         public override dynamic UnpackData(uint[] data, int bitIndex)
         {
-            return (sbyte)UnpackSignedData(data, bitIndex) ;
+            return (sbyte)UnpackUnsignedData(data, bitIndex) ;
         }
 
         public override void PackData(dynamic value, uint[] data, int bitIndex)
         {
-            PackSignedData((sbyte)value, data, bitIndex);
+            PackUnsignedData((byte)value, data, bitIndex);
         }
 
     }
@@ -308,12 +322,12 @@ namespace NationalInstruments.NiFpga
 
         public override dynamic UnpackData(uint[] data, int bitIndex)
         {
-            return (short)UnpackSignedData(data, bitIndex);
+            return (short)UnpackUnsignedData(data, bitIndex);
         }
 
         public override void PackData(dynamic value, uint[] data, int bitIndex)
         {
-            PackSignedData((short)value, data, bitIndex);
+            PackUnsignedData((ushort)value, data, bitIndex);
         }
     }
 
@@ -330,12 +344,12 @@ namespace NationalInstruments.NiFpga
 
         public override dynamic UnpackData(uint[] data, int bitIndex)
         {
-            return (int)UnpackSignedData(data, bitIndex);
+            return (int)UnpackUnsignedData(data, bitIndex);
         }
 
         public override void PackData(dynamic value, uint[] data, int bitIndex)
         {
-            PackSignedData((int)value, data, bitIndex);
+            PackUnsignedData((uint)value, data, bitIndex);
         }
     }
 
@@ -352,12 +366,13 @@ namespace NationalInstruments.NiFpga
 
         public override dynamic UnpackData(uint[] data, int bitIndex)
         {
-            return (long)UnpackSignedData(data, bitIndex);
+            Console.WriteLine("test");
+            return (long)UnpackUnsignedData(data, bitIndex);
         }
 
         public override void PackData(dynamic value, uint[] data, int bitIndex)
         {
-            PackSignedData((long)value, data, bitIndex);
+            PackUnsignedData((ulong)value, data, bitIndex);
         }
     }
 
@@ -543,8 +558,8 @@ namespace NationalInstruments.NiFpga
                 {
                     _children = new List<FpgaType>
                     {
+                        new FpgaFixedPoint(name, typeXml),
                         new FpgaBool("OverflowStatus"),
-                        new FpgaFixedPoint(name, typeXml)
                     };
                     _sizeInBits = _children.Sum(child => child.SizeInBits);
                 }
@@ -565,9 +580,10 @@ namespace NationalInstruments.NiFpga
 
         public override dynamic UnpackData(uint[] data, int bitIndex)
         {
-            var result = new Dictionary<string, dynamic>();
+            var result = new OrderedDictionary();
             foreach (var child in Enumerable.Reverse(_children))
             {
+                Console.WriteLine($"Unpacking {child.Name}: bitIndex={bitIndex}, SizeInBits={child.SizeInBits}");
                 result[child.Name] = child.UnpackData(data, bitIndex);
                 bitIndex += child.SizeInBits;
             }
@@ -578,6 +594,7 @@ namespace NationalInstruments.NiFpga
         {
             foreach (var child in Enumerable.Reverse(_children))
             {
+                Console.WriteLine($"Packing {child.Name}: bitIndex={bitIndex}, SizeInBits={child.SizeInBits}");
                 child.PackData(dataToPack[child.Name], packedData, bitIndex);
                 bitIndex += child.SizeInBits;
             }
@@ -596,7 +613,7 @@ namespace NationalInstruments.NiFpga
         public static double CalculateFxpDeltaDouble(FixedPointTypeInfo typeInfo)
         {
             int exponent = typeInfo.IntegerWordLength - typeInfo.WordLength;
-            return Math.Pow(2, exponent) * double.Epsilon;
+            return 2.2204460492503131e-16 * Math.Pow(2, exponent + 53 - 1);
         }
 
         public static double ConvertFromFxpToDouble(FixedPointTypeInfo typeInfo, ulong data)
@@ -608,48 +625,39 @@ namespace NationalInstruments.NiFpga
         private static double FxpToFloatingPoint(FixedPointTypeInfo typeInfo, double delta, ulong data)
         {
             ulong wordLengthMask = typeInfo.WordLength != 64
-                ? (1UL << typeInfo.WordLength) - 1 : 0xFFFFFFFFFFFFFFFFUL;
+                ? (1UL << (int)typeInfo.WordLength) - 1 : 0xFFFFFFFFFFFFFFFFUL;
+            Console.WriteLine($"FxpToFloatingPoint: wordLengthMask: {wordLengthMask:X}");
 
-            if (data < 0)
+            data &= wordLengthMask;
+            Console.WriteLine($"FxpToFloatingPoint: data after applying wordLengthMask: {data:X}");
+
+            if (typeInfo.IsSigned)
             {
-                if (typeInfo.IsSigned)
+                Console.WriteLine("FxpToFloatingPoint: typeInfo is signed");
+                ulong signedMask = 1UL << (int)(typeInfo.WordLength - 1);
+                Console.WriteLine($"FxpToFloatingPoint: signedMask: {signedMask:X}");
+
+                if ((data & signedMask) != 0)
                 {
-                    long fxpRepresentation = (long)(data / delta);
-                    fxpRepresentation ^= (long)wordLengthMask;
-                    fxpRepresentation += 1;
-                    fxpRepresentation *= -1;
-                    if ((fxpRepresentation & (long)wordLengthMask) == fxpRepresentation)
-                    {
-                        return fxpRepresentation;
-                    }
-                    else /* minimum */
-                    {
-                        return (-1L * (1L << (typeInfo.WordLength - 1))) & (long)wordLengthMask;
-                    }
-                }
-                else
-                {
-                    return 0;
+                    Console.WriteLine("FxpToFloatingPoint: data & signedMask is not zero");
+                    long signedData = (long)(data ^ wordLengthMask);
+                    Console.WriteLine($"FxpToFloatingPoint: signedData after XOR with wordLengthMask: {signedData:X}");
+
+                    signedData = (signedData + 1) * -1;
+                    Console.WriteLine($"FxpToFloatingPoint: signedData after adding 1 and negating: {signedData:X}");
+
+                    return delta * signedData;
                 }
             }
-            else
-            {
-                ulong fxpRepresentation = (ulong)(data / delta);
-                if ((fxpRepresentation & wordLengthMask) == fxpRepresentation)
-                {
-                    return fxpRepresentation;
-                }
-                else /* maximum */
-                {
-                    ulong magnitude = (ulong)(typeInfo.WordLength - (typeInfo.IsSigned ? 1 : 0));
-                    return (1UL << (int)magnitude) - 1;
-                }
-            }
+
+            Console.WriteLine("FxpToFloatingPoint: typeInfo is not signed or data & signedMask is zero");
+            return delta * data;
         }
 
         public static ulong ConvertFromDoubleToFixedPoint(FixedPointTypeInfo typeInfo, double data)
         {
             double delta = CalculateFxpDeltaDouble(typeInfo);
+            Console.WriteLine($"Converting {data} to FXP, delta: {delta}");
             return FloatingPointToFxp(typeInfo, delta, data);
         }
 
@@ -657,38 +665,55 @@ namespace NationalInstruments.NiFpga
         {
             ulong wordLengthMask = typeInfo.WordLength != 64
                 ? (1UL << typeInfo.WordLength) - 1 : 0xFFFFFFFFFFFFFFFFUL;
+            Console.WriteLine($"FloatingPointToFxp: wordLengthMask: {wordLengthMask:X}");
 
             if (data < 0)
             {
+                Console.WriteLine("FloatingPointToFxp: data is less than 0");
                 if (typeInfo.IsSigned)
                 {
+                    Console.WriteLine("FloatingPointToFxp: typeInfo is signed");
                     long fxpRepresentation = (long)(data / delta);
+                    Console.WriteLine($"FloatingPointToFxp: fxpRepresentation after division: {fxpRepresentation:X}");
+
                     fxpRepresentation ^= (long)wordLengthMask;
+                    Console.WriteLine($"FloatingPointToFxp: fxpRepresentation after XOR: {fxpRepresentation:X}");
+
                     fxpRepresentation += 1;
                     fxpRepresentation *= -1;
+                    Console.WriteLine($"FloatingPointToFxp: fxpRepresentation after adding 1 and negating: {fxpRepresentation:X}");
+
                     if ((fxpRepresentation & (long)wordLengthMask) == fxpRepresentation)
                     {
+                        Console.WriteLine("FloatingPointToFxp: fxpRepresentation is within word length mask");
                         return (ulong)fxpRepresentation;
                     }
                     else /* minimum */
                     {
+                        Console.WriteLine("FloatingPointToFxp: fxpRepresentation is not within word length mask");
                         return (ulong)((-1L * (1L << (typeInfo.WordLength - 1))) & (long)wordLengthMask);
                     }
                 }
                 else
                 {
+                    Console.WriteLine("FloatingPointToFxp: typeInfo is not signed");
                     return 0;
                 }
             }
             else
             {
+                Console.WriteLine("FloatingPointToFxp: data is not less than 0");
                 ulong fxpRepresentation = (ulong)(data / delta);
+                Console.WriteLine($"FloatingPointToFxp: fxpRepresentation after division: {fxpRepresentation:X}");
+
                 if ((fxpRepresentation & wordLengthMask) == fxpRepresentation)
                 {
+                    Console.WriteLine("FloatingPointToFxp: fxpRepresentation is within word length mask");
                     return fxpRepresentation;
                 }
                 else /* maximum */
                 {
+                    Console.WriteLine("FloatingPointToFxp: fxpRepresentation is not within word length mask");
                     ulong magnitude = (ulong)(typeInfo.WordLength - (typeInfo.IsSigned ? 1 : 0));
                     return (1UL << (int)magnitude) - 1;
                 }
@@ -730,6 +755,7 @@ namespace NationalInstruments.NiFpga
         public override void PackData(dynamic value, uint[] data, int bitIndex)
         {
             var dataToPack = FixedPoint.ConvertFromDoubleToFixedPoint(typeInfo, value);
+            Console.WriteLine($"Packing {value} to {dataToPack}");
             PackUnsignedData(dataToPack, data, bitIndex);
         }
     }
@@ -848,7 +874,7 @@ namespace NationalInstruments.NiFpga
                     return new FpgaFixedPoint(name, typeXml);
                 }
             }
-
+            Console.WriteLine($"Parsing type: {typeName}");
             switch (typeName)
             {
                 case "Boolean":
