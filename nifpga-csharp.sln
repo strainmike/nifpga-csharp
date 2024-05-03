@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34031.279
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NationalInstruments.NiFpga", "NationalInstruments.NiFpga.csproj", "{61331B46-1475-4D84-BA80-ACA5595DFE84}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NationalInstruments.NiFpga", "nifpga-csharp\NationalInstruments.NiFpga.csproj", "{61331B46-1475-4D84-BA80-ACA5595DFE84}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NiFpgaExample", "..\NiFpgaExample\NiFpgaExample.csproj", "{490D8DE5-544C-444B-A016-B655B172C8EE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NiFpgaExample", "NiFpgaExample\NiFpgaExample.csproj", "{490D8DE5-544C-444B-A016-B655B172C8EE}"
 	ProjectSection(ProjectDependencies) = postProject
 		{61331B46-1475-4D84-BA80-ACA5595DFE84} = {61331B46-1475-4D84-BA80-ACA5595DFE84}
 	EndProjectSection
