@@ -12,5 +12,13 @@
     <Description>API for accessing NI's FPGA devices from C#.</Description>
     <Copyright>National Instruments</Copyright>
     <PackageTags>fpga;hardawre;driver</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/strainmike/nifpga-csharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+      <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
 </Project>
