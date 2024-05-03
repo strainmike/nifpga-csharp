@@ -123,7 +123,7 @@ using (var session = new Session("cRIO-9068_allregistertypes.lvbitx", "rio://DRA
 
 using (var session = new Session("cRIO-9068_dataintegrity_u32.lvbitx", "rio://DRATS2-9068/RIO0"))
 {
-    //session.reset();
+    session.reset();
     session.run();
     var h2t_loopback_fifo = session.Fifos["DMA 1 Output"];
     uint[] data = new uint[] { 100, 2, 3242 };

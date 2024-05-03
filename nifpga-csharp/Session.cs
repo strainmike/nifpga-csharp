@@ -250,11 +250,8 @@ namespace NationalInstruments.NiFpga
         {
             _bitfile = new Bitfile(bitfile);
             uint attribute = (uint)1 << 31;
-            int result = NativeMethods.NiFpgaDll_Open(bitfile, null, resource, attribute, out _session);
-            if (result != 0)
-            {
-                throw new Exception($"Failed to open session. NiFpgaDll_Open returned: {result}");
-            }
+            var status = NativeMethods.NiFpgaDll_Open(bitfile, null, resource, attribute, out _session);
+            NiFpgaException.ThrowIfFatal(status, "NiFpgaDll_Open errored");
 
             try
             {
@@ -298,14 +295,26 @@ namespace NationalInstruments.NiFpga
 
         private Fifo CreateFifo(FpgaFifo bitfileFifo)
         {
-            if (bitfileFifo.Type.DataType == DataType.U32)
+            switch (bitfileFifo.Type.DataType)
             {
-                return new FifoU32(this, bitfileFifo);
-            }
-            else
-            {
-                // Add more cases here for other types
-                throw new ArgumentException($"Unsupported FIFO data type: {bitfileFifo.Type.DataType}");
+                case DataType.U8:
+                    return new FifoU8(this, bitfileFifo);
+                case DataType.U16:
+                    return new FifoU16(this, bitfileFifo);
+                case DataType.U32:
+                    return new FifoU32(this, bitfileFifo);
+                case DataType.U64:
+                    return new FifoU64(this, bitfileFifo);
+                case DataType.I8:
+                    return new FifoI8(this, bitfileFifo);
+                case DataType.I16:
+                    return new FifoI16(this, bitfileFifo);
+                case DataType.I32:
+                    return new FifoI32(this, bitfileFifo);
+                case DataType.I64:
+                    return new FifoI64(this, bitfileFifo);
+                default:
+                    throw new ArgumentException($"Unsupported FIFO data type: {bitfileFifo.Type.DataType}");
             }
         }
 
@@ -337,39 +346,27 @@ namespace NationalInstruments.NiFpga
 
         public void download()
         {
-            int result = NativeMethods.NiFpgaDll_Download(_session);
-            if (result != 0)
-            {
-                throw new Exception("Failed to download");
-            }
+            var status = NativeMethods.NiFpgaDll_Download(_session);
+            NiFpgaException.ThrowIfFatal(status, "NiFpgaDll_Run errored");
         }
 
         public void reset()
         {
-            int result = NativeMethods.NiFpgaDll_Reset(_session);
-            if (result != 0)
-            {
-                throw new Exception("Failed to reset");
-            }
+            var status = NativeMethods.NiFpgaDll_Reset(_session);
+            NiFpgaException.ThrowIfFatal(status, "NiFpgaDll_Run errored");
         }
 
         public void run()
         {
-            int result = NativeMethods.NiFpgaDll_Run(_session, 0);
-            if (result < 0)
-            {
-                throw new Exception("Failed to run");
-            }
+            var status = NativeMethods.NiFpgaDll_Run(_session, 0);
+            NiFpgaException.ThrowIfFatal(status, "NiFpgaDll_Run errored");
         }
 
         public FpgaViState GetFpgaViState()
         {
             UInt32 state;
-            int result = NativeMethods.NiFpgaDll_GetFpgaViState(_session, out state);
-            if (result != 0)
-            {
-                throw new Exception("Failed to get state");
-            }
+            var status = NativeMethods.NiFpgaDll_GetFpgaViState(_session, out state);
+            NiFpgaException.ThrowIfFatal(status, "NiFpgaDll_GetFpgaViState errored");
             return (FpgaViState)state;
         }
     }
@@ -405,9 +402,8 @@ namespace NationalInstruments.NiFpga
         public dynamic Read()
         {
             uint[] buf = new uint[_transferLen];
-            Console.WriteLine($"Shift: {_bitShift}, _transferLen: {_transferLen}, SizeInBits:{_register.Type.SizeInBits}");
-            NativeMethods.NiFpgaDll_ReadArrayU32(_session._session, _register.Offset, buf, _transferLen);
-            Console.WriteLine($"Read Buffer contents: {string.Join(", ", buf.Select(x => "0x" + x.ToString("X")))}");
+            var status = NativeMethods.NiFpgaDll_ReadArrayU32(_session._session, _register.Offset, buf, _transferLen);
+            NiFpgaException.ThrowIfFatal(status, "NiFpgaDll_ReadArrayU32 errored");
             return _register.Type.UnpackData(buf, _bitShift);
         }
 
@@ -415,8 +411,8 @@ namespace NationalInstruments.NiFpga
         {
             uint[] buf = new uint[_transferLen];
             _register.Type.PackData(userInput, buf, _bitShift);
-            Console.WriteLine($"Write Buffer contents: {string.Join(", ", buf.Select(x => "0x" + x.ToString("X")))}");
-            NativeMethods.NiFpgaDll_WriteArrayU32(_session._session, _register.Offset, buf, _transferLen);
+            var status = NativeMethods.NiFpgaDll_WriteArrayU32(_session._session, _register.Offset, buf, _transferLen);
+            NiFpgaException.ThrowIfFatal(status, "NiFpgaDll_WriteArrayU32 errored");
         }
     }
 
