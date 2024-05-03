@@ -151,7 +151,7 @@ namespace NationalInstruments.NiFpga
 
         public override int NumberOfElements => 1;
 
-         public override dynamic UnpackData(uint[] data, int bitIndex)
+        public override dynamic UnpackData(uint[] data, int bitIndex)
         {
             return "";
         }
@@ -299,7 +299,7 @@ namespace NationalInstruments.NiFpga
 
         public override dynamic UnpackData(uint[] data, int bitIndex)
         {
-            return (sbyte)UnpackUnsignedData(data, bitIndex) ;
+            return (sbyte)UnpackUnsignedData(data, bitIndex);
         }
 
         public override void PackData(dynamic value, uint[] data, int bitIndex)
@@ -497,8 +497,8 @@ namespace NationalInstruments.NiFpga
 
         public override int SizeInBits => _sizeInBits;
 
-        public override bool IsCApiType => _subType.IsCApiType; 
-        
+        public override bool IsCApiType => _subType.IsCApiType;
+
         public override DataType DataType => _subType.DataType;
 
 
@@ -785,12 +785,37 @@ namespace NationalInstruments.NiFpga
         public int Length()
         {
             return NumElements;
-        } 
+        }
 
 
         public override string ToString()
         {
             return $"Register '{Name}'\n\tType: {Type.DataType}\n\tNum Elements: {Length()}\n\tOffset: {Offset}\n";
+        }
+
+    }
+
+
+    public class FpgaFifo
+    {
+        public string Name { get; }
+        public uint Number { get; }
+        public bool Direction { get; }
+        public FpgaType Type { get; }
+
+        public FpgaFifo(XElement channelXml)
+        {
+            Name = channelXml.Attribute("name").Value;
+            Number = uint.Parse(channelXml.Element("Number").Value);
+            var dataTypeXml = channelXml.Element("DataType");
+            if (dataTypeXml.Element("SubType") != null)
+            {
+                Type = Bitfile.ParseType(dataTypeXml);
+            }
+            else
+            {
+                throw new Exception("Unsupported type");
+            }
         }
 
     }
@@ -801,6 +826,8 @@ namespace NationalInstruments.NiFpga
         private string _signature;
         public uint BaseAddressOnDevice;
         public List<FpgaRegister> Registers;
+        public List<FpgaFifo> Fifos;
+
 
         public Bitfile(string filepath, bool parseContents = false)
         {
@@ -840,6 +867,19 @@ namespace NationalInstruments.NiFpga
                 //{
                 //    Console.WriteLine($"Skipping Register: {regXml.Element("Name").Value}, {e.Message}");
                 //}
+            }
+            Fifos = new List<FpgaFifo>();
+            foreach (var channelXml in nifpga.Element("DmaChannelAllocationList").Elements())
+            {
+                try
+                {
+                    var fifo = new FpgaFifo(channelXml);
+                    Fifos.Add(fifo);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Skipping FIFO: {channelXml.Element("Name").Value}, {e.Message}");
+                }
             }
         }
 
@@ -907,7 +947,7 @@ namespace NationalInstruments.NiFpga
                     return new FpgaU64(name);
                 default:
                     throw new UnsupportedTypeError($"The FPGA Interface C# API does not yet support {typeName}");
-            }       
+            }
         }
     }
 

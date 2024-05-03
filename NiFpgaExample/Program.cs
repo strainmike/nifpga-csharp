@@ -1,11 +1,13 @@
 ﻿using NationalInstruments.NiFpga;
+using System.Collections;
+using System.Collections.Specialized;
 using System.Runtime.CompilerServices;
 
 void PrintValue(dynamic value, string whitespace="")
 {
-    if (value is Dictionary<string, dynamic> dict)
+    if (value is OrderedDictionary dict)
     {
-        foreach (var kvp in dict)
+        foreach (DictionaryEntry kvp in dict)
         {
             Console.WriteLine($"{whitespace}Name: {kvp.Key}");
             PrintValue(kvp.Value, whitespace + "   ");
@@ -26,7 +28,7 @@ void PrintValue(dynamic value, string whitespace="")
 
 using (var session = new Session("cRIO-9068_allregistertypes.lvbitx", "rio://DRATS2-9068/RIO0"))
 {
-    session.reset();
+    //session.reset();
     session.run();
     /*
     var register = session.Registers["Input U16"];
@@ -87,16 +89,56 @@ using (var session = new Session("cRIO-9068_allregistertypes.lvbitx", "rio://DRA
     PrintValue(cluster.Read(), "    ");
     */
 
-    
-    var clusterComplex = session.Registers["Input Complex Cluster"];
     /*
+    var clusterComplex = session.Registers["Input Complex Cluster"];
+    var valueComplex = clusterComplex.Read();
     valueComplex["U32"] = 7;
     valueComplex["U16"] = 8;
     valueComplex["U8"] = 253;
     valueComplex["I32"] = 500;
     valueComplex["Cluster 1"]["I8"] = -12;
     valueComplex["Cluster 1"]["U8"] = 12;
-    clusterComplex.Write(valueComplex);*/
+    valueComplex["Cluster 1"]["FXP 4-bit Signed"]["FXP 4-bit Signed"] = 1;
+    clusterComplex.Write(valueComplex);
     PrintValue(clusterComplex.Read());
-    
+    */
+
+    var fxpReg = session.Registers["Input FXP 63-bit Signed"];
+    var valueComplex = fxpReg.Read();
+    PrintValue(fxpReg.Read());
+    valueComplex = -15.7777;
+    fxpReg.Write(valueComplex);
+    PrintValue(fxpReg.Read());
+    PrintValue(session.Registers["Output FXP 63-bit Signed"].Read());
+    var val = session.Registers["Input FXP 64-bit Unsigned Overflow"].Read();
+
+    PrintValue(val);
+    val["Input FXP 64-bit Unsigned Overflow"] = 30204;
+    val["OverflowStatus"] = true;
+    session.Registers["Input FXP 64-bit Unsigned Overflow"].Write(val);
+    PrintValue(session.Registers["Input FXP 64-bit Unsigned Overflow"].Read());
+    PrintValue(session.Registers["Output FXP 64-bit Unsigned Overflow"].Read());
 }
+
+
+using (var session = new Session("cRIO-9068_dataintegrity_u32.lvbitx", "rio://DRATS2-9068/RIO0"))
+{
+    //session.reset();
+    session.run();
+    var h2t_loopback_fifo = session.Fifos["DMA 1 Output"];
+    uint[] data = new uint[] { 100, 2, 3242 };
+    h2t_loopback_fifo.ReaderWriter<uint[]>().Write(data);
+
+
+    var t2h_fifo = session.Fifos["DMA 2 Input"];
+    nuint elementsRemaining = 0;
+    var values = t2h_fifo.ReaderWriter<uint[]>().Read(3, out elementsRemaining);
+    PrintValue(values);
+    PrintValue(elementsRemaining);
+
+    var autoinc_fifo = session.Fifos["DMA 0 Input"];
+    var autoinc_values = autoinc_fifo.ReaderWriter<uint[]>().Read(20, out elementsRemaining);
+    PrintValue(autoinc_values);
+    PrintValue(elementsRemaining);
+}
+    
